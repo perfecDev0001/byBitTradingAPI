@@ -8,9 +8,16 @@
  *    - Present live USDT perpetual data from Bybit using 1-minute and 5-minute candlesticks
  *    - Customizable filters for volume spikes, price breakouts, spoof detection, etc.
  *    - Console-based output for market signals
+ * 
+ * Enhanced with advanced volume analysis techniques:
+ *    - Volatility-adjusted volume thresholds
+ *    - Weighted average volume calculation
+ *    - Volume acceleration detection
+ *    - Time-based volume analysis
  */
 
 const { RestClientV5, WebsocketClient } = require('bybit-api');
+const { analyzeVolume } = require('./enhancedVolumeAnalysis');
 
 // Configuration
 const API_KEY = 'esUvA3iyrimc8nVihB';
@@ -40,6 +47,14 @@ const scannerState = {
     spoofDetectionEnabled: true,
     whaleAlertsEnabled: true,
     liquidityWallsEnabled: true
+  },
+  // Enhanced volume analysis options
+  volumeAnalysisOptions: {
+    useVolatilityAdjustment: true,  // Adjust threshold based on market volatility
+    useWeightedAverage: true,       // Give more weight to recent candles
+    detectAcceleration: true,       // Detect rapid volume increases
+    useTimeAdjustment: true,        // Adjust threshold based on time of day
+    accelerationThreshold: 1.3      // Threshold for acceleration detection
   },
   symbols: [],
   marketData: {},
@@ -156,6 +171,7 @@ function processWebSocketData(data) {
         orderBook: null,
         analysis: {
           volumeSpike: false,
+          volumeAnalysis: null,  // Will store detailed volume analysis
           priceBreakout: { isBreakout: false, direction: null },
           orderBookImbalance: { isImbalanced: false },
           liquidityWalls: { hasWalls: false }
@@ -168,10 +184,17 @@ function processWebSocketData(data) {
     if (data.topic.includes('kline')) {
       scannerState.marketData[symbol].klineData = data.data;
       
-      // Run analysis on kline data
+      // Run enhanced volume analysis
       if (scannerState.filters.volumeSpikeThreshold > 0) {
-        scannerState.marketData[symbol].analysis.volumeSpike = 
-          detectVolumeSpike(data.data, scannerState.filters.volumeSpikeThreshold);
+        // Combine base threshold with advanced options
+        const volumeAnalysisResult = analyzeVolume(data.data, {
+          baseThreshold: scannerState.filters.volumeSpikeThreshold,
+          ...scannerState.volumeAnalysisOptions
+        });
+        
+        // Store both the simple flag and the detailed analysis
+        scannerState.marketData[symbol].analysis.volumeSpike = volumeAnalysisResult.isVolumeSignal;
+        scannerState.marketData[symbol].analysis.volumeAnalysis = volumeAnalysisResult;
       }
       
       scannerState.marketData[symbol].analysis.priceBreakout = 
@@ -260,7 +283,8 @@ function checkForAlerts(symbol) {
         priceBreakout: data.analysis.priceBreakout.isBreakout,
         orderBookImbalance: data.analysis.orderBookImbalance.isImbalanced,
         liquidityWalls: data.analysis.liquidityWalls.hasWalls
-      }
+      },
+      volumeAnalysis: data.analysis.volumeAnalysis // Include the detailed volume analysis
     };
     
     // Log the alert
@@ -275,7 +299,7 @@ function checkForAlerts(symbol) {
  * Log market alert to console
  */
 function logMarketAlert(alertData) {
-  const { symbol, currentPrice, percentageMove, breakoutDirection, filters } = alertData;
+  const { symbol, currentPrice, percentageMove, breakoutDirection, filters, volumeAnalysis } = alertData;
   
   // Create a formatted alert message
   console.log('\n' + '='.repeat(50));
@@ -289,9 +313,36 @@ function logMarketAlert(alertData) {
   
   // Alert reasons
   console.log('\nAlert Reasons:');
-  if (filters.volumeSpike) {
+  
+  // Enhanced volume spike information
+  if (filters.volumeSpike && volumeAnalysis) {
+    console.log('- Volume Spike Detected ⚡');
+    
+    // Add detailed volume information
+    console.log(`  • Current Volume: ${volumeAnalysis.simpleAnalysis.currentVolume.toFixed(2)}`);
+    console.log(`  • Avg Volume: ${volumeAnalysis.simpleAnalysis.avgVolume.toFixed(2)}`);
+    console.log(`  • Ratio: ${volumeAnalysis.simpleAnalysis.ratio.toFixed(2)}x`);
+    console.log(`  • Signal Strength: ${(volumeAnalysis.signalStrength * 100).toFixed(0)}%`);
+    
+    // Show which methods detected the spike
+    const methods = [];
+    if (volumeAnalysis.detailedAnalysis.volatilityAdjusted.isSpike) 
+      methods.push('Volatility-Adjusted');
+    if (volumeAnalysis.detailedAnalysis.weightedAverage.isSpike) 
+      methods.push('Weighted Average');
+    if (volumeAnalysis.detailedAnalysis.acceleration.isAccelerating) 
+      methods.push('Acceleration');
+    if (volumeAnalysis.detailedAnalysis.timeAdjusted.isSpike) 
+      methods.push('Time-Adjusted');
+    
+    if (methods.length > 0) {
+      console.log(`  • Detection Methods: ${methods.join(', ')}`);
+    }
+  } else if (filters.volumeSpike) {
+    // Fallback for simple volume spike detection
     console.log('- Volume Spike Detected ⚡');
   }
+  
   if (filters.priceBreakout) {
     console.log(`- Price ${breakoutDirection === 'up' ? 'Breakout ↑' : 'Breakdown ↓'}`);
   }
@@ -416,8 +467,19 @@ function showHelp() {
   console.log('5. Update breakout threshold: type "breakout X" (e.g., breakout 1.01)');
   console.log('6. Toggle spoof detection: type "spoof on/off"');
   console.log('7. Toggle liquidity walls: type "walls on/off"');
-  console.log('8. Show this help: type "help"');
-  console.log('9. Exit: type "exit" or press Ctrl+C');
+  
+  // Enhanced volume analysis commands
+  console.log('\n=== Enhanced Volume Analysis Commands ===');
+  console.log('8. Show volume analysis options: type "volume options"');
+  console.log('9. Toggle volatility adjustment: type "volume volatility on/off"');
+  console.log('10. Toggle weighted average: type "volume weighted on/off"');
+  console.log('11. Toggle acceleration detection: type "volume acceleration on/off"');
+  console.log('12. Toggle time adjustment: type "volume time on/off"');
+  console.log('13. Set acceleration threshold: type "volume accel-threshold X" (e.g., 1.3)');
+  
+  console.log('\n=== General Commands ===');
+  console.log('14. Show this help: type "help"');
+  console.log('15. Exit: type "exit" or press Ctrl+C');
   console.log('=======================================\n');
 }
 
@@ -467,6 +529,52 @@ function processCommand(cmd) {
   }
   else if (cmd === 'walls off') {
     scannerState.updateFilters({ liquidityWallsEnabled: false });
+  }
+  // Enhanced volume analysis commands
+  else if (cmd === 'volume options') {
+    console.log('\nEnhanced Volume Analysis Options:');
+    console.log(JSON.stringify(scannerState.volumeAnalysisOptions, null, 2));
+  }
+  else if (cmd === 'volume volatility on') {
+    scannerState.volumeAnalysisOptions.useVolatilityAdjustment = true;
+    console.log('Volatility adjustment enabled');
+  }
+  else if (cmd === 'volume volatility off') {
+    scannerState.volumeAnalysisOptions.useVolatilityAdjustment = false;
+    console.log('Volatility adjustment disabled');
+  }
+  else if (cmd === 'volume weighted on') {
+    scannerState.volumeAnalysisOptions.useWeightedAverage = true;
+    console.log('Weighted average enabled');
+  }
+  else if (cmd === 'volume weighted off') {
+    scannerState.volumeAnalysisOptions.useWeightedAverage = false;
+    console.log('Weighted average disabled');
+  }
+  else if (cmd === 'volume acceleration on') {
+    scannerState.volumeAnalysisOptions.detectAcceleration = true;
+    console.log('Acceleration detection enabled');
+  }
+  else if (cmd === 'volume acceleration off') {
+    scannerState.volumeAnalysisOptions.detectAcceleration = false;
+    console.log('Acceleration detection disabled');
+  }
+  else if (cmd === 'volume time on') {
+    scannerState.volumeAnalysisOptions.useTimeAdjustment = true;
+    console.log('Time adjustment enabled');
+  }
+  else if (cmd === 'volume time off') {
+    scannerState.volumeAnalysisOptions.useTimeAdjustment = false;
+    console.log('Time adjustment disabled');
+  }
+  else if (cmd.startsWith('volume accel-threshold ')) {
+    const threshold = parseFloat(cmd.split(' ')[2]);
+    if (!isNaN(threshold) && threshold > 0) {
+      scannerState.volumeAnalysisOptions.accelerationThreshold = threshold;
+      console.log(`Acceleration threshold set to ${threshold}`);
+    } else {
+      console.log('Invalid threshold value. Please use a positive number.');
+    }
   }
   else if (cmd === 'exit') {
     console.log('Exiting...');
