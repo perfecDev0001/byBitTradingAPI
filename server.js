@@ -9,7 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const WebSocket = require('ws');
+const { Server } = require('socket.io');
 const http = require('http');
 
 // Import route modules
@@ -21,7 +21,7 @@ const webhookRoutes = require('./routes/webhookRoutes');
 
 // Import services
 const MarketDataService = require('./services/MarketDataService');
-const WebSocketService = require('./services/WebSocketService');
+const SocketIOService = require('./services/SocketIOService');
 
 const app = express();
 const server = http.createServer(app);
@@ -73,10 +73,10 @@ app.use('*', (req, res) => {
 
 // Initialize services
 const marketDataService = new MarketDataService();
-const wsService = new WebSocketService(server);
+const socketService = new SocketIOService(server);
 
 // Connect services
-wsService.setMarketDataService(marketDataService);
+socketService.setMarketDataService(marketDataService);
 marketRoutes.setMarketDataService(marketDataService);
 
 // Start server
@@ -85,7 +85,7 @@ server.listen(PORT, async () => {
   console.log(`🚀 Bybit Trading Backend running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-  console.log(`🔌 WebSocket server available at ws://localhost:${PORT}/ws`);
+  console.log(`🔌 Socket.IO server available at http://localhost:${PORT}`);
   
   // Initialize market data service
   try {

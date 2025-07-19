@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .message {
+            background-color: #e2e3e5;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Socket.IO Test Client</h1>
+        
+        <div id="status" class="status disconnected">
+            Status: Disconnected
+        </div>
+        
+        <div>
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div>
+            <input type="text" id="messageInput" placeholder="Enter test message" />
+            <button onclick="sendTestMessage()">Send Test Message</button>
+        </div>
+        
+        <div>
+            <button onclick="subscribe()">Subscribe to Market Data</button>
+            <button onclick="unsubscribe()">Unsubscribe</button>
+            <button onclick="ping()">Send Ping</button>
+        </div>
+        
+        <h3>Messages:</h3>
+        <div id="messages"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        function updateStatus(connected, message = '') {
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = `Status: Connected ${message}`;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = `Status: Disconnected ${message}`;
+            }
+        }
+        
+        function addMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.textContent = `[${new Date().toLocaleTimeString()}] ${JSON.stringify(message, null, 2)}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function connect() {
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            socket = io('http://localhost:3001');
+            
+            socket.on('connect', () => {
+                updateStatus(true, `(ID: ${socket.id})`);
+                addMessage({ event: 'connected', id: socket.id });
+            });
+            
+            socket.on('disconnect', (reason) => {
+                updateStatus(false, `(${reason})`);
+                addMessage({ event: 'disconnected', reason });
+            });
+            
+            socket.on('connection', (data) => {
+                addMessage({ event: 'connection', data });
+            });
+            
+            socket.on('welcome', (data) => {
+                addMessage({ event: 'welcome', data });
+            });
+            
+            socket.on('test_response', (data) => {
+                addMessage({ event: 'test_response', data });
+            });
+            
+            socket.on('subscription_confirmed', (data) => {
+                addMessage({ event: 'subscription_confirmed', data });
+            });
+            
+            socket.on('unsubscription_confirmed', (data) => {
+                addMessage({ event: 'unsubscription_confirmed', data });
+            });
+            
+            socket.on('pong', (data) => {
+                addMessage({ event: 'pong', data });
+            });
+            
+            socket.on('market_update', (data) => {
+                addMessage({ event: 'market_update', data });
+            });
+            
+            socket.on('connect_error', (error) => {
+                updateStatus(false, `(Error: ${error.message})`);
+                addMessage({ event: 'connect_error', error: error.message });
+            });
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+        
+        function sendTestMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (socket && socket.connected && message) {
+                socket.emit('test_message', { message, timestamp: Date.now() });
+                input.value = '';
+                addMessage({ event: 'sent_test_message', message });
+            } else {
+                alert('Please connect first and enter a message');
+            }
+        }
+        
+        function subscribe() {
+            if (socket && socket.connected) {
+                socket.emit('subscribe', { channels: ['market', 'signals'] });
+                addMessage({ event: 'sent_subscribe', channels: ['market', 'signals'] });
+            } else {
+                alert('Please connect first');
+            }
+        }
+        
+        function unsubscribe() {
+            if (socket && socket.connected) {
+                socket.emit('unsubscribe', { channels: ['market', 'signals'] });
+                addMessage({ event: 'sent_unsubscribe', channels: ['market', 'signals'] });
+            } else {
+                alert('Please connect first');
+            }
+        }
+        
+        function ping() {
+            if (socket && socket.connected) {
+                socket.emit('ping');
+                addMessage({ event: 'sent_ping', timestamp: Date.now() });
+            } else {
+                alert('Please connect first');
+            }
+        }
+        
+        // Auto-connect on page load
+        window.onload = () => {
+            connect();
+        };
+    </script>
+</body>
+</html>
