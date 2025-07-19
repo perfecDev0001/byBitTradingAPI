@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Test Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Socket.IO Test Client</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+
+    <script>
+        const socket = io('http://localhost:3001');
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+
+        function addMessage(message) {
+            const div = document.createElement('div');
+            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            messagesDiv.appendChild(div);
+            console.log(message);
+        }
+
+        socket.on('connect', () => {
+            statusDiv.textContent = 'Connected ✅';
+            addMessage('Connected to server');
+        });
+
+        socket.on('connection', (data) => {
+            addMessage(`Connection confirmed: ${JSON.stringify(data)}`);
+            
+            // Subscribe to market updates
+            socket.emit('subscribe', { channels: ['market', 'signals'] });
+            addMessage('Sent subscription request for market and signals');
+        });
+
+        socket.on('subscription_confirmed', (data) => {
+            addMessage(`Subscription confirmed: ${JSON.stringify(data)}`);
+        });
+
+        socket.on('market_update', (data) => {
+            addMessage(`Market update: ${data.data.symbol} - $${data.data.price}`);
+        });
+
+        socket.on('signals', (data) => {
+            addMessage(`Signal: ${JSON.stringify(data)}`);
+        });
+
+        socket.on('disconnect', () => {
+            statusDiv.textContent = 'Disconnected ❌';
+            addMessage('Disconnected from server');
+        });
+
+        socket.on('error', (error) => {
+            statusDiv.textContent = 'Error ❌';
+            addMessage(`Error: ${error}`);
+        });
+    </script>
+</body>
+</html>

@@ -130,19 +130,25 @@ class SocketIOService {
 
   setMarketDataService(marketDataService) {
     this.marketDataService = marketDataService;
+    console.log('🔗 Connecting MarketDataService to SocketIOService...');
     
     // Listen to market data events
     marketDataService.on('marketUpdate', (data) => {
+      console.log(`📡 SocketIO: Received marketUpdate for ${data.symbol}, broadcasting to ${this.clients.size} clients`);
       this.broadcast('market_update', data, 'market');
     });
 
     marketDataService.on('klineUpdate', (data) => {
+      console.log(`📡 SocketIO: Received klineUpdate for ${data.symbol}, broadcasting to ${this.clients.size} clients`);
       this.broadcast('kline_update', data, 'kline');
     });
 
     marketDataService.on('signals', (data) => {
+      console.log(`📡 SocketIO: Received signals for ${data.symbol}, broadcasting to ${this.clients.size} clients`);
       this.broadcast('signals', data, 'signals');
     });
+    
+    console.log('✅ MarketDataService event listeners set up');
   }
 
   broadcast(event, data, channel = null) {
@@ -152,17 +158,23 @@ class SocketIOService {
       timestamp: Date.now()
     };
 
+    let sentCount = 0;
     this.clients.forEach((client, clientId) => {
       // Check if client is subscribed to this channel
       if (!channel || client.subscriptions.has(channel)) {
         try {
           client.socket.emit(event, payload);
+          sentCount++;
         } catch (error) {
           console.error(`❌ Error sending message to client ${clientId}:`, error);
           this.clients.delete(clientId);
         }
       }
     });
+    
+    if (sentCount > 0) {
+      console.log(`📡 SocketIO: Broadcasted ${event} to ${sentCount} clients (channel: ${channel || 'all'})`);
+    }
   }
 
   sendToClient(clientId, event, data) {
