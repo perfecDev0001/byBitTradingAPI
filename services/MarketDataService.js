@@ -129,8 +129,20 @@ class MarketDataService extends EventEmitter {
 
       if (symbolsResponse.retCode === 0) {
         const symbols = symbolsResponse.result.list
-          .filter(symbol => symbol.symbol.endsWith('USDT'))
-          .slice(0, 10); // Start with just 10 symbols for testing
+          .filter(symbol => this.isValidSymbol(symbol.symbol))
+          .sort((a, b) => {
+            // Sort by priority first, then by volume
+            const priorityA = this.getSymbolPriority(a.symbol);
+            const priorityB = this.getSymbolPriority(b.symbol);
+            
+            if (priorityA !== priorityB) {
+              return priorityB - priorityA; // Higher priority first
+            }
+            
+            // If same priority, sort by volume (if available)
+            return 0; // Keep original order for same priority
+          })
+          .slice(0, 50); // Increase to 50 symbols to get more main pairs
 
         console.log('📊 Selected symbols:', symbols.map(s => s.symbol));
 
@@ -204,6 +216,10 @@ class MarketDataService extends EventEmitter {
       
       data.data.forEach((ticker, index) => {
         const symbol = ticker.symbol;
+        
+        // Filter out unwanted symbols
+        if (!this.isValidSymbol(symbol)) return;
+        
         const currentData = this.marketData.get(symbol) || {};
         
         const updatedData = {
@@ -245,6 +261,10 @@ class MarketDataService extends EventEmitter {
     if (data.data) {
       data.data.forEach(kline => {
         const symbol = kline.symbol;
+        
+        // Filter out unwanted symbols
+        if (!this.isValidSymbol(symbol)) return;
+        
         const interval = data.topic.includes('kline.1.') ? '1m' : '5m';
         
         const klineKey = `${symbol}_${interval}`;
@@ -463,6 +483,34 @@ class MarketDataService extends EventEmitter {
     return null;
   }
 
+  // Helper method to validate symbols
+  isValidSymbol(symbol) {
+    // Filter for USDT pairs
+    if (!symbol.endsWith('USDT')) return false;
+    
+    // Filter out derivative/leveraged tokens with numerical prefixes
+    if (/^\d+/.test(symbol)) return false; // Starts with numbers like 1000, 10000
+    
+    // Filter out some other unwanted patterns
+    if (symbol.includes('UP') || symbol.includes('DOWN')) return false; // Leveraged tokens
+    if (symbol.includes('BEAR') || symbol.includes('BULL')) return false; // Leveraged tokens
+    
+    return true;
+  }
+
+  // Helper method to get priority for symbols (higher number = higher priority)
+  getSymbolPriority(symbol) {
+    const priorityCoins = [
+      'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 
+      'XRPUSDT', 'DOTUSDT', 'DOGEUSDT', 'AVAXUSDT', 'MATICUSDT',
+      'LINKUSDT', 'LTCUSDT', 'UNIUSDT', 'ATOMUSDT', 'FILUSDT',
+      'TRXUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICPUSDT'
+    ];
+    
+    const index = priorityCoins.indexOf(symbol);
+    return index >= 0 ? (priorityCoins.length - index) : 0;
+  }
+
   // Enhanced API Methods
   async getMarketData() {
     const data = Array.from(this.marketData.values());
@@ -513,8 +561,22 @@ class MarketDataService extends EventEmitter {
 
       if (tickerResponse.retCode === 0) {
         const tickers = tickerResponse.result.list
-          .filter(ticker => ticker.symbol.endsWith('USDT'))
-          .slice(0, 20); // Top 20 pairs
+          .filter(ticker => this.isValidSymbol(ticker.symbol))
+          .sort((a, b) => {
+            // Sort by priority first, then by volume
+            const priorityA = this.getSymbolPriority(a.symbol);
+            const priorityB = this.getSymbolPriority(b.symbol);
+            
+            if (priorityA !== priorityB) {
+              return priorityB - priorityA; // Higher priority first
+            }
+            
+            // If same priority, sort by volume
+            const volumeA = parseFloat(a.volume24h) || 0;
+            const volumeB = parseFloat(b.volume24h) || 0;
+            return volumeB - volumeA;
+          })
+          .slice(0, 50); // Top 50 pairs
 
         console.log(`📊 REST: Processing ${tickers.length} tickers`);
 
