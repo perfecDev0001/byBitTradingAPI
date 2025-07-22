@@ -19,7 +19,26 @@ const restClient = new RestClientV5(
 );
 
 // Symbols to monitor
-const SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
+const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BLASTUSDT', 'NOTUSDT'];
+
+async function fetchUSDTPerpetualSymbols() {
+  try {
+    const response = await restClient.getInstrumentsInfo({
+      category: 'linear',
+      status: 'Trading'
+    });
+    
+    // Filter for USDT perpetual symbols only
+    const usdtSymbols = response.result.list.filter(
+      item => item.quoteCoin === 'USDT' && item.contractType === 'LinearPerpetual'
+    );
+    
+    return usdtSymbols.map(item => item.symbol);
+  } catch (error) {
+    console.error('Error fetching symbols:', error);
+    return [];
+  }
+}
 
 /**
  * Fetch and display current market data
@@ -28,24 +47,36 @@ async function fetchMarketData() {
   try {
     // 1. Fetch current ticker data
     console.log('Fetching current market data...\n');
+    const filterUSDTPerpetualSymbols = await fetchUSDTPerpetualSymbols();
+    console.log('getSymbolList:', filterUSDTPerpetualSymbols.length, ' symbols:', filterUSDTPerpetualSymbols);
+
+    console.log('CURRENT MARKET PRICES:');
+    console.log('=====================');
     
-    const tickerResponse = await restClient.getTickers({
-      category: 'linear',
-      symbol: SYMBOLS.join(',')
-    });
-    
-    if (tickerResponse.retCode === 0 && tickerResponse.result.list) {
-      console.log('CURRENT MARKET PRICES:');
-      console.log('=====================');
-      
-      tickerResponse.result.list.forEach(ticker => {
-        console.log(`${ticker.symbol}: ${ticker.lastPrice} USDT`);
-        console.log(`24h Change: ${ticker.price24hPcnt}%`);
-        console.log(`24h High: ${ticker.highPrice24h}`);
-        console.log(`24h Low: ${ticker.lowPrice24h}`);
-        console.log(`24h Volume: ${ticker.volume24h}`);
+    // Fetch each symbol individually to avoid issues
+    for (const symbol of SYMBOLS) {
+      try {
+        const tickerResponse = await restClient.getTickers({
+          category: 'linear',
+          symbol: symbol
+        });
+        
+        if (tickerResponse.retCode === 0 && tickerResponse.result.list && tickerResponse.result.list.length > 0) {
+          const ticker = tickerResponse.result.list[0];
+          console.log(`${ticker.symbol}: ${ticker.lastPrice} USDT`);
+          console.log(`24h Change: ${ticker.price24hPcnt}%`);
+          console.log(`24h High: ${ticker.highPrice24h}`);
+          console.log(`24h Low: ${ticker.lowPrice24h}`);
+          console.log(`24h Volume: ${ticker.volume24h}`);
+          console.log('---------------------');
+        } else {
+          console.log(`${symbol}: Failed to fetch data - ${tickerResponse.retMsg}`);
+          console.log('---------------------');
+        }
+      } catch (err) {
+        console.log(`${symbol}: Error fetching data - ${err.message}`);
         console.log('---------------------');
-      });
+      }
     }
     
     // 2. Fetch recent kline data

@@ -25,8 +25,71 @@ router.setMarketDataService = (service) => {
 // GET /api/market/data - Get current market data
 router.get('/data', ensureMarketService, async (req, res) => {
   try {
-    const { limit = 50, sort = 'volume' } = req.query;
-    const data = await marketDataService.getMarketData();
+    const { limit = 50, sort = 'volume', demo = 'false' } = req.query;
+    let data = await marketDataService.getMarketData();
+    
+    // If no signals detected and demo mode requested, add some sample data
+    if (data.length === 0 && demo === 'true') {
+      const allData = await marketDataService.getAllMarketData();
+      if (allData.length > 0) {
+        // Take first 3 coins and add sample filter data
+        data = allData.slice(0, 3).map((coin, index) => {
+          const sampleFilters = [
+            // First coin - Volume spike + Price breakout
+            index === 0 ? [
+              {
+                type: 'volume_spike',
+                icon: '📈',
+                label: 'Volume Spike',
+                description: '15.2% above average',
+                severity: 'high'
+              },
+              {
+                type: 'price_breakout',
+                icon: '🚀',
+                label: 'Price Breakout',
+                description: 'Upward price movement detected',
+                severity: 'high'
+              }
+            ] : [],
+            // Second coin - Order book imbalance + Whale activity
+            index === 1 ? [
+              {
+                type: 'spoof_detection',
+                icon: '⚠️',
+                label: 'Order Book Imbalance',
+                description: 'Buy pressure (1.25x ratio)',
+                severity: 'medium'
+              },
+              {
+                type: 'whale_alert',
+                icon: '🐋',
+                label: 'Whale Activity',
+                description: 'large_volume_movement: $2.1M bullish',
+                severity: 'critical'
+              }
+            ] : [],
+            // Third coin - Liquidity walls
+            index === 2 ? [
+              {
+                type: 'liquidity_imbalance',
+                icon: '🧱',
+                label: 'Liquidity Walls',
+                description: 'Buy & Sell walls detected',
+                severity: 'high'
+              }
+            ] : []
+          ];
+          
+          return {
+            ...coin,
+            hasSignals: sampleFilters[index].length > 0,
+            activeFilters: sampleFilters[index],
+            filterCount: sampleFilters[index].length
+          };
+        });
+      }
+    }
     
     let sortedData = data;
     if (sort === 'volume') {
@@ -38,7 +101,8 @@ router.get('/data', ensureMarketService, async (req, res) => {
     res.json({
       success: true,
       data: sortedData.slice(0, parseInt(limit)),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      demoMode: demo === 'true' && data.length > 0
     });
   } catch (error) {
     console.error('❌ Error fetching market data:', error);
@@ -212,6 +276,153 @@ router.get('/symbols', ensureMarketService, async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching symbols:', error);
     res.status(500).json({ error: 'Failed to fetch symbols' });
+  }
+});
+
+// GET /api/market/all-data - Get all market data (for debugging)
+router.get('/all-data', ensureMarketService, async (req, res) => {
+  try {
+    const { limit = 50, sort = 'volume' } = req.query;
+    const data = await marketDataService.getAllMarketData();
+    
+    let sortedData = data;
+    if (sort === 'volume') {
+      sortedData = data.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
+    } else if (sort === 'change') {
+      sortedData = data.sort((a, b) => Math.abs(b.change24h || 0) - Math.abs(a.change24h || 0));
+    }
+
+    res.json({
+      success: true,
+      data: sortedData.slice(0, parseInt(limit)),
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('❌ Error fetching all market data:', error);
+    res.status(500).json({ error: 'Failed to fetch all market data' });
+  }
+});
+
+// GET /api/market/signals - Get current signals
+router.get('/signals', ensureMarketService, async (req, res) => {
+  try {
+    const signals = await marketDataService.getSignals();
+    
+    res.json({
+      success: true,
+      signals,
+      count: signals.length,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('❌ Error fetching signals:', error);
+    res.status(500).json({ error: 'Failed to fetch signals' });
+  }
+});
+
+// GET /api/market/filter-settings - Show current filter settings
+router.get('/filter-settings', ensureMarketService, (req, res) => {
+  try {
+    const settings = marketDataService.scannerFilters;
+    res.json({
+      success: true,
+      settings: settings,
+      message: 'Current scanner filter settings',
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('❌ Error getting filter settings:', error);
+    res.status(500).json({ error: 'Failed to get filter settings' });
+  }
+});
+
+// GET /api/market/test-filters - Test endpoint to show filter icons
+router.get('/test-filters', (req, res) => {
+  try {
+    // Simulate coins with different filter combinations
+    const testData = [
+      {
+        symbol: 'BTCUSDT',
+        price: 120000.1,
+        change24h: 2.5,
+        volume24h: 82561.311,
+        turnover24h: 12056280365.5551,
+        timestamp: Date.now(),
+        hasSignals: true,
+        activeFilters: [
+          {
+            type: 'volume_spike',
+            icon: '📈',
+            label: 'Volume Spike',
+            description: '25.3% above average',
+            severity: 'high'
+          },
+          {
+            type: 'price_breakout',
+            icon: '🚀',
+            label: 'Price Breakout',
+            description: 'Upward price movement detected',
+            severity: 'high'
+          }
+        ],
+        filterCount: 2
+      },
+      {
+        symbol: 'ETHUSDT',
+        price: 4564.17,
+        change24h: -1.2,
+        volume24h: 11580147.51,
+        turnover24h: 71696503214.0839,
+        timestamp: Date.now(),
+        hasSignals: true,
+        activeFilters: [
+          {
+            type: 'spoof_detection',
+            icon: '⚠️',
+            label: 'Order Book Imbalance',
+            description: 'Sell pressure (1.45x ratio)',
+            severity: 'medium'
+          },
+          {
+            type: 'whale_alert',
+            icon: '🐋',
+            label: 'Whale Activity',
+            description: 'large_volume_movement: $7,169,650,321 bearish',
+            severity: 'critical'
+          }
+        ],
+        filterCount: 2
+      },
+      {
+        symbol: 'BNBUSDT',
+        price: 833.5,
+        change24h: 0.8,
+        volume24h: 48595.21,
+        turnover24h: 37441196.543,
+        timestamp: Date.now(),
+        hasSignals: true,
+        activeFilters: [
+          {
+            type: 'liquidity_imbalance',
+            icon: '🧱',
+            label: 'Liquidity Walls',
+            description: 'Buy & Sell walls detected',
+            severity: 'high'
+          }
+        ],
+        filterCount: 1
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: testData,
+      message: 'Test data showing different filter combinations',
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('❌ Error generating test data:', error);
+    res.status(500).json({ error: 'Failed to generate test data' });
   }
 });
 
