@@ -47,7 +47,7 @@ router.get('/trades', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching trades:', error);
+    console.error('Error fetching trades:', error);
     res.status(500).json({ error: 'Failed to fetch trades' });
   }
 });
@@ -69,7 +69,7 @@ router.get('/trades/:id', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching trade:', error);
+    console.error('Error fetching trade:', error);
     res.status(500).json({ error: 'Failed to fetch trade' });
   }
 });
@@ -115,7 +115,7 @@ router.post('/trades', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error adding trade:', error);
+    console.error('Error adding trade:', error);
     res.status(500).json({ error: 'Failed to add trade' });
   }
 });
@@ -147,7 +147,7 @@ router.put('/trades/:id', async (req, res) => {
       return res.status(404).json({ error: 'Trade not found' });
     }
     
-    console.error('❌ Error updating trade:', error);
+    console.error('Error updating trade:', error);
     res.status(500).json({ error: 'Failed to update trade' });
   }
 });
@@ -170,7 +170,7 @@ router.delete('/trades/:id', async (req, res) => {
       return res.status(404).json({ error: 'Trade not found' });
     }
     
-    console.error('❌ Error deleting trade:', error);
+    console.error('Error deleting trade:', error);
     res.status(500).json({ error: 'Failed to delete trade' });
   }
 });
@@ -201,7 +201,7 @@ router.get('/summary', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error calculating summary:', error);
+    console.error('Error calculating summary:', error);
     res.status(500).json({ error: 'Failed to calculate summary' });
   }
 });
@@ -230,7 +230,7 @@ router.get('/daily', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error calculating daily PnL:', error);
+    console.error('Error calculating daily PnL:', error);
     res.status(500).json({ error: 'Failed to calculate daily PnL' });
   }
 });
@@ -259,7 +259,7 @@ router.get('/cumulative', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error calculating cumulative PnL:', error);
+    console.error('Error calculating cumulative PnL:', error);
     res.status(500).json({ error: 'Failed to calculate cumulative PnL' });
   }
 });
@@ -288,7 +288,7 @@ router.get('/monthly', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error calculating monthly stats:', error);
+    console.error('Error calculating monthly stats:', error);
     res.status(500).json({ error: 'Failed to calculate monthly stats' });
   }
 });
@@ -316,7 +316,7 @@ router.get('/top-symbols', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching top symbols:', error);
+    console.error('Error fetching top symbols:', error);
     res.status(500).json({ error: 'Failed to fetch top symbols' });
   }
 });
@@ -333,7 +333,7 @@ router.post('/sample-data', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error adding sample data:', error);
+    console.error('Error adding sample data:', error);
     res.status(500).json({ error: 'Failed to add sample data' });
   }
 });
@@ -377,7 +377,7 @@ router.get('/export', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Error exporting data:', error);
+    console.error('Error exporting data:', error);
     res.status(500).json({ error: 'Failed to export data' });
   }
 });

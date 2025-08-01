@@ -33,18 +33,10 @@ class MarketDataService extends EventEmitter {
 
   async initialize() {
     try {
-      console.log('🔄 Initializing Market Data Service...');
-      console.log('🔧 Environment check:');
-      console.log('  - API Key:', process.env.BYBIT_API_KEY ? 'Set' : 'Missing');
-      console.log('  - API Secret:', process.env.BYBIT_API_SECRET ? 'Set' : 'Missing');
-      console.log('  - Testnet:', process.env.BYBIT_TESTNET);
-      
       // Test REST API connection first
-      console.log('🔍 Testing REST API connection...');
       await this.testRestConnection();
       
       // Initialize WebSocket connection
-      console.log('🔌 Initializing WebSocket connection...');
       this.wsClient = new WebsocketClient({
         key: process.env.BYBIT_API_KEY,
         secret: process.env.BYBIT_API_SECRET,
@@ -54,24 +46,23 @@ class MarketDataService extends EventEmitter {
 
       // Set up WebSocket event handlers
       this.wsClient.on('update', (data) => {
-        console.log('📊 WebSocket update received:', JSON.stringify(data, null, 2));
         this.handleWebSocketUpdate(data);
       });
 
       this.wsClient.on('open', () => {
-        console.log('✅ WebSocket connection opened');
+        // WebSocket connection opened
       });
 
       this.wsClient.on('close', () => {
-        console.log('🔌 WebSocket connection closed');
+        // WebSocket connection closed
       });
 
       this.wsClient.on('error', (error) => {
-        console.error('❌ WebSocket error:', error);
+        console.error('WebSocket error:', error);
       });
 
       this.wsClient.on('response', (data) => {
-        console.log('📡 WebSocket response:', JSON.stringify(data, null, 2));
+        // WebSocket response received
       });
 
       // Get initial market data
@@ -81,20 +72,17 @@ class MarketDataService extends EventEmitter {
       await this.startRestFallback();
       
       this.isInitialized = true;
-      console.log('✅ Market Data Service initialized successfully');
       
     } catch (error) {
-      console.error('❌ Failed to initialize Market Data Service:', error);
+      console.error('Failed to initialize Market Data Service:', error);
       console.error('Error details:', error.message);
       
       // If initialization fails, try REST-only mode
-      console.log('🔄 Attempting REST-only mode...');
       try {
         await this.startRestFallback();
         this.isInitialized = true;
-        console.log('✅ Market Data Service initialized in REST-only mode');
       } catch (restError) {
-        console.error('❌ REST-only mode also failed:', restError.message);
+        console.error('REST-only mode also failed:', restError.message);
         throw error;
       }
     }
@@ -102,31 +90,20 @@ class MarketDataService extends EventEmitter {
 
   async testRestConnection() {
     try {
-      console.log('🔍 Testing REST API connection to Bybit...');
       const response = await this.client.getServerTime();
-      console.log('✅ REST API connection successful');
-      console.log('📅 Server time:', response.result?.timeSecond ? new Date(response.result.timeSecond * 1000).toISOString() : 'Unknown');
       return true;
     } catch (error) {
-      console.error('❌ REST API connection failed:', error.message);
+      console.error('REST API connection failed:', error.message);
       throw new Error(`REST API connection failed: ${error.message}`);
     }
   }
 
   async fetchInitialData() {
     try {
-      console.log('📊 Fetching initial market data...');
-      
       // Get all USDT perpetual symbols
       const symbolsResponse = await this.client.getInstrumentsInfo({
         category: 'linear',
         baseCoin: 'USDT'
-      });
-
-      console.log('📊 Symbols response:', {
-        retCode: symbolsResponse.retCode,
-        retMsg: symbolsResponse.retMsg,
-        symbolCount: symbolsResponse.result?.list?.length || 0
       });
 
       if (symbolsResponse.retCode === 0) {
@@ -146,84 +123,56 @@ class MarketDataService extends EventEmitter {
           })
           .slice(0, 50); // Increase to 50 symbols to get more main pairs
 
-        console.log('📊 Selected symbols:', symbols.map(s => s.symbol));
-
         // Subscribe to real-time data for these symbols
         const symbolNames = symbols.map(s => s.symbol);
         await this.subscribeToSymbols(symbolNames);
-        
-        console.log(`📊 Subscribed to ${symbolNames.length} symbols`);
       } else {
-        console.error('❌ Failed to fetch symbols:', symbolsResponse.retMsg);
+        console.error('Failed to fetch symbols:', symbolsResponse.retMsg);
       }
     } catch (error) {
-      console.error('❌ Error fetching initial data:', error);
+      console.error('Error fetching initial data:', error);
       console.error('Error details:', error.message);
     }
   }
 
   async subscribeToSymbols(symbols) {
     try {
-      console.log('📡 Starting WebSocket subscriptions...');
-      
       // Subscribe to ticker data for all linear instruments
-      console.log('📡 Subscribing to tickers.linear...');
       const tickerResult = await this.wsClient.subscribeV5('tickers.linear', 'linear');
-      console.log('📡 Ticker subscription result:', tickerResult);
       
       // Subscribe to kline data and order book for selected symbols
-      console.log('📡 Subscribing to kline and orderbook data for symbols:', symbols);
       for (const symbol of symbols.slice(0, 10)) { // Increase to 10 symbols for better coverage
-        console.log(`📡 Subscribing to kline.1.${symbol}...`);
         const klineResult = await this.wsClient.subscribeV5(`kline.1.${symbol}`, 'linear');
-        console.log(`📡 Kline subscription result for ${symbol}:`, klineResult);
         
         // Subscribe to order book data (50 levels)
-        console.log(`📡 Subscribing to orderbook.50.${symbol}...`);
         const orderbookResult = await this.wsClient.subscribeV5(`orderbook.50.${symbol}`, 'linear');
-        console.log(`📡 Orderbook subscription result for ${symbol}:`, orderbookResult);
         
         // Add a small delay between subscriptions
         await new Promise(resolve => setTimeout(resolve, 200));
       }
-      
-      console.log('📡 All subscriptions completed');
     } catch (error) {
-      console.error('❌ Error subscribing to symbols:', error);
+      console.error('Error subscribing to symbols:', error);
       console.error('Error details:', error.message);
     }
   }
 
   handleWebSocketUpdate(data) {
     try {
-      console.log('📊 Processing WebSocket update:', {
-        topic: data.topic,
-        type: data.type,
-        dataLength: data.data?.length || 0
-      });
-      
       if (data.topic && data.topic.startsWith('tickers')) {
-        console.log('📊 Processing ticker update...');
         this.handleTickerUpdate(data);
       } else if (data.topic && data.topic.startsWith('kline')) {
-        console.log('📊 Processing kline update...');
         this.handleKlineUpdate(data);
       } else if (data.topic && data.topic.startsWith('orderbook')) {
-        console.log('📊 Processing orderbook update...');
         this.handleOrderBookUpdate(data);
-      } else {
-        console.log('📊 Unknown topic:', data.topic);
       }
     } catch (error) {
-      console.error('❌ Error handling WebSocket update:', error);
+      console.error('Error handling WebSocket update:', error);
       console.error('Error details:', error.message);
     }
   }
 
   handleTickerUpdate(data) {
     if (data.data) {
-      console.log(`📊 Processing ${data.data.length} ticker updates`);
-      
       data.data.forEach((ticker, index) => {
         const symbol = ticker.symbol;
         
@@ -244,27 +193,13 @@ class MarketDataService extends EventEmitter {
 
         this.marketData.set(symbol, updatedData);
         
-        // Log first few updates for debugging
-        if (index < 3) {
-          console.log(`📊 Updated ${symbol}:`, {
-            price: updatedData.price,
-            change24h: updatedData.change24h,
-            volume24h: updatedData.volume24h
-          });
-        }
-        
         // Emit update for real-time clients
-        console.log(`📡 Emitting marketUpdate for ${symbol}`);
         this.emit('marketUpdate', updatedData);
         
         // Check for signals (both old and new methods)
         this.checkForSignals(updatedData);
         this.checkForSignalsAdvanced(symbol);
       });
-      
-      console.log(`📊 Total market data entries: ${this.marketData.size}`);
-    } else {
-      console.log('📊 No ticker data in update');
     }
   }
 
@@ -320,8 +255,6 @@ class MarketDataService extends EventEmitter {
       
       // Filter out unwanted symbols
       if (!this.isValidSymbol(symbol)) return;
-      
-      console.log(`📊 Processing orderbook update for ${symbol}`);
       
       // Store order book data
       this.orderBookData.set(symbol, {
@@ -601,7 +534,7 @@ class MarketDataService extends EventEmitter {
         change: marketData.change24h
       });
       
-      console.log(`🚨 Signals detected for ${symbol}:`, detectedSignals.map(s => s.type).join(', '));
+
     } else {
       // Remove from signal data if no signals
       this.signalData.delete(symbol);
@@ -878,10 +811,8 @@ class MarketDataService extends EventEmitter {
   const isBreakdown = currentClose < previousClose / threshold;
   
   if (isBreakout) {
-    console.log(`🚀 Price breakout detected: ${previousClose} -> ${currentClose} (${((currentClose/previousClose - 1) * 100).toFixed(2)}%)`);
     return { isBreakout: true, direction: 'up' };
   } else if (isBreakdown) {
-    console.log(`📉 Price breakdown detected: ${previousClose} -> ${currentClose} (${((currentClose/previousClose - 1) * 100).toFixed(2)}%)`);
     return { isBreakout: true, direction: 'down' };
   } else {
     return { isBreakout: false, direction: null };
@@ -1090,7 +1021,7 @@ class MarketDataService extends EventEmitter {
       }
     });
     
-    console.log(`📊 Returning ${enrichedData.length} coins with filter information`);
+
     
     return enrichedData.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
   }
@@ -1178,8 +1109,6 @@ class MarketDataService extends EventEmitter {
           })
           .slice(0, 50); // Top 50 pairs
 
-        console.log(`📊 REST: Processing ${tickers.length} tickers`);
-
         tickers.forEach((ticker, index) => {
           const updatedData = {
             symbol: ticker.symbol,
@@ -1192,23 +1121,12 @@ class MarketDataService extends EventEmitter {
 
           this.marketData.set(ticker.symbol, updatedData);
 
-          // Log first few for debugging
-          if (index < 3) {
-            console.log(`📊 REST: Updated ${ticker.symbol}:`, {
-              price: updatedData.price,
-              change24h: updatedData.change24h,
-              volume24h: updatedData.volume24h
-            });
-          }
-
           // Emit update for real-time clients
           this.emit('marketUpdate', updatedData);
         });
-
-        console.log(`📊 REST: Total market data entries: ${this.marketData.size}`);
       }
     } catch (error) {
-      console.error('❌ Error fetching REST market data:', error.message);
+      console.error('Error fetching REST market data:', error.message);
     }
   }
 
@@ -1216,7 +1134,6 @@ class MarketDataService extends EventEmitter {
     if (this.restFallbackInterval) {
       clearInterval(this.restFallbackInterval);
       this.restFallbackInterval = null;
-      console.log('🔄 REST API fallback stopped');
     }
   }
 }

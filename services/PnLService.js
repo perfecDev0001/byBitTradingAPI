@@ -16,9 +16,9 @@ class PnLService {
   async initialize() {
     try {
       await this.loadTrades();
-      console.log('✅ PnL Service initialized');
+      console.log('PnL Service initialized');
     } catch (error) {
-      console.error('❌ Error initializing PnL Service:', error);
+      console.error('Error initializing PnL Service:', error);
       this.trades = [];
     }
   }
@@ -32,7 +32,6 @@ class PnLService {
       // Try to load existing trades
       const data = await fs.readFile(this.tradesFile, 'utf8');
       this.trades = JSON.parse(data);
-      console.log(`📊 Loaded ${this.trades.length} trades from storage`);
     } catch (error) {
       if (error.code === 'ENOENT') {
         // File doesn't exist, start with empty array
@@ -48,7 +47,7 @@ class PnLService {
     try {
       await fs.writeFile(this.tradesFile, JSON.stringify(this.trades, null, 2));
     } catch (error) {
-      console.error('❌ Error saving trades:', error);
+      console.error('Error saving trades:', error);
     }
   }
 
@@ -340,7 +339,7 @@ class PnLService {
       await this.addTrade(trade);
     }
 
-    console.log('📊 Sample trades added for testing');
+
   }
 }
 

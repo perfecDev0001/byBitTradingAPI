@@ -20,7 +20,6 @@ class WebSocketService {
 
   initialize() {
     this.wss.on('connection', (ws, req) => {
-      console.log('🔌 New WebSocket client connected');
       this.clients.add(ws);
 
       // Send initial connection message
@@ -36,7 +35,7 @@ class WebSocketService {
           const data = JSON.parse(message);
           this.handleClientMessage(ws, data);
         } catch (error) {
-          console.error('❌ Error parsing WebSocket message:', error);
+          console.error('Error parsing WebSocket message:', error);
         }
       });
 
@@ -81,7 +80,7 @@ class WebSocketService {
 
     channels.forEach(channel => {
       ws.subscriptions.add(channel);
-      console.log(`📡 Client subscribed to: ${channel}`);
+
     });
 
     // Send confirmation
@@ -98,7 +97,7 @@ class WebSocketService {
     if (ws.subscriptions) {
       channels.forEach(channel => {
         ws.subscriptions.delete(channel);
-        console.log(`📡 Client unsubscribed from: ${channel}`);
+  
       });
     }
 

@@ -105,7 +105,7 @@ router.get('/data', ensureMarketService, async (req, res) => {
       demoMode: demo === 'true' && data.length > 0
     });
   } catch (error) {
-    console.error('❌ Error fetching market data:', error);
+    console.error('Error fetching market data:', error);
     res.status(500).json({ error: 'Failed to fetch market data' });
   }
 });
@@ -126,7 +126,7 @@ router.get('/kline/:symbol', ensureMarketService, async (req, res) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('❌ Error fetching kline data:', error);
+    console.error('Error fetching kline data:', error);
     res.status(500).json({ error: 'Failed to fetch kline data' });
   }
 });
@@ -143,7 +143,7 @@ router.get('/movers', ensureMarketService, async (req, res) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('❌ Error fetching top movers:', error);
+    console.error('Error fetching top movers:', error);
     res.status(500).json({ error: 'Failed to fetch top movers' });
   }
 });
@@ -159,7 +159,7 @@ router.get('/filters', ensureMarketService, async (req, res) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('❌ Error fetching filters:', error);
+    console.error('Error fetching filters:', error);
     res.status(500).json({ error: 'Failed to fetch filters' });
   }
 });
@@ -183,7 +183,7 @@ router.put('/filters', ensureMarketService, async (req, res) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('❌ Error updating filters:', error);
+    console.error('Error updating filters:', error);
     res.status(500).json({ error: 'Failed to update filters' });
   }
 });
@@ -229,7 +229,7 @@ router.post('/webhook', async (req, res) => {
         timestamp: Date.now()
       });
     } catch (webhookError) {
-      console.error('❌ Webhook error:', webhookError.message);
+      console.error('Webhook error:', webhookError.message);
       res.status(500).json({ 
         error: 'Failed to send to webhook',
         details: webhookError.message 
@@ -237,7 +237,7 @@ router.post('/webhook', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Error sending webhook:', error);
+    console.error('Error sending webhook:', error);
     res.status(500).json({ error: 'Failed to process webhook request' });
   }
 });
@@ -274,7 +274,7 @@ router.get('/symbols', ensureMarketService, async (req, res) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('❌ Error fetching symbols:', error);
+    console.error('Error fetching symbols:', error);
     res.status(500).json({ error: 'Failed to fetch symbols' });
   }
 });
@@ -298,7 +298,7 @@ router.get('/all-data', ensureMarketService, async (req, res) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('❌ Error fetching all market data:', error);
+    console.error('Error fetching all market data:', error);
     res.status(500).json({ error: 'Failed to fetch all market data' });
   }
 });

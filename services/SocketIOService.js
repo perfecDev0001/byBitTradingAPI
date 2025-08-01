@@ -29,7 +29,7 @@ class SocketIOService {
 
   initialize() {
     this.io.on('connection', (socket) => {
-      console.log(`🔌 New Socket.IO client connected: ${socket.id}`);
+
       
       // Store client with subscriptions
       this.clients.set(socket.id, {
@@ -66,18 +66,17 @@ class SocketIOService {
 
       // Handle client disconnect
       socket.on('disconnect', (reason) => {
-        console.log(`🔌 Socket.IO client disconnected: ${socket.id}, reason: ${reason}`);
         this.clients.delete(socket.id);
       });
 
       // Handle errors
       socket.on('error', (error) => {
-        console.error(`❌ Socket.IO error for client ${socket.id}:`, error);
+        console.error(`Socket.IO error for client ${socket.id}:`, error);
         this.clients.delete(socket.id);
       });
     });
 
-    console.log(`🔌 Socket.IO server initialized`);
+
   }
 
   handleSubscription(socket, data) {
@@ -88,7 +87,6 @@ class SocketIOService {
 
     channels.forEach(channel => {
       client.subscriptions.add(channel);
-      console.log(`📡 Client ${socket.id} subscribed to: ${channel}`);
     });
 
     // Send confirmation
@@ -106,7 +104,6 @@ class SocketIOService {
 
     channels.forEach(channel => {
       client.subscriptions.delete(channel);
-      console.log(`📡 Client ${socket.id} unsubscribed from: ${channel}`);
     });
 
     // Send confirmation
@@ -118,7 +115,6 @@ class SocketIOService {
 
   handleMarketRequest(socket, data) {
     // Handle specific market data requests
-    console.log(`📊 Market data request from ${socket.id}:`, data);
     
     // You can add custom logic here to handle specific market data requests
     socket.emit('market_response', {
@@ -130,25 +126,19 @@ class SocketIOService {
 
   setMarketDataService(marketDataService) {
     this.marketDataService = marketDataService;
-    console.log('🔗 Connecting MarketDataService to SocketIOService...');
     
     // Listen to market data events
     marketDataService.on('marketUpdate', (data) => {
-      console.log(`📡 SocketIO: Received marketUpdate for ${data.symbol}, broadcasting to ${this.clients.size} clients`);
       this.broadcast('market_update', data, 'market');
     });
 
     marketDataService.on('klineUpdate', (data) => {
-      console.log(`📡 SocketIO: Received klineUpdate for ${data.symbol}, broadcasting to ${this.clients.size} clients`);
       this.broadcast('kline_update', data, 'kline');
     });
 
     marketDataService.on('signals', (data) => {
-      console.log(`📡 SocketIO: Received signals for ${data.symbol}, broadcasting to ${this.clients.size} clients`);
       this.broadcast('signals', data, 'signals');
     });
-    
-    console.log('✅ MarketDataService event listeners set up');
   }
 
   broadcast(event, data, channel = null) {
@@ -172,9 +162,7 @@ class SocketIOService {
       }
     });
     
-    if (sentCount > 0) {
-      console.log(`📡 SocketIO: Broadcasted ${event} to ${sentCount} clients (channel: ${channel || 'all'})`);
-    }
+
   }
 
   sendToClient(clientId, event, data) {
@@ -205,7 +193,6 @@ class SocketIOService {
     const client = this.clients.get(clientId);
     if (client) {
       client.socket.join(room);
-      console.log(`📡 Client ${clientId} joined room: ${room}`);
     }
   }
 
@@ -214,7 +201,6 @@ class SocketIOService {
     const client = this.clients.get(clientId);
     if (client) {
       client.socket.leave(room);
-      console.log(`📡 Client ${clientId} left room: ${room}`);
     }
   }
 

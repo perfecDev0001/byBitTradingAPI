@@ -82,17 +82,17 @@ marketRoutes.setMarketDataService(marketDataService);
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {
-  console.log(`🚀 Bybit Trading Backend running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-  console.log(`🔌 Socket.IO server available at http://localhost:${PORT}`);
+  console.log(`Bybit Trading Backend running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  console.log(`Socket.IO server available at http://localhost:${PORT}`);
   
   // Initialize market data service
   try {
     await marketDataService.initialize();
-    console.log('✅ Market Data Service initialized successfully');
+    console.log('Market Data Service initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize Market Data Service:', error);
+    console.error('Failed to initialize Market Data Service:', error);
   }
 });
 
