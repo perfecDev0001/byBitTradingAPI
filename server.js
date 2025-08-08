@@ -18,10 +18,13 @@ const backtestingRoutes = require('./routes/backtestingRoutes');
 const pnlRoutes = require('./routes/pnlRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
+const { router: signalRoutes, initializeSignalService } = require('./routes/signalRoutes');
+const candlestickRoutes = require('./routes/candlestickRoutes');
 
 // Import services
 const MarketDataService = require('./services/MarketDataService');
 const SocketIOService = require('./services/SocketIOService');
+const SignalService = require('./services/SignalService');
 
 const app = express();
 const server = http.createServer(app);
@@ -60,6 +63,8 @@ app.use('/api/backtesting', backtestingRoutes);
 app.use('/api/pnl', pnlRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/webhook', webhookRoutes);
+app.use('/api/signals', signalRoutes);
+app.use('/api/candlestick', candlestickRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -78,10 +83,12 @@ app.use('*', (req, res) => {
 // Initialize services
 const marketDataService = new MarketDataService();
 const socketService = new SocketIOService(server);
+const signalService = new SignalService();
 
 // Connect services
 socketService.setMarketDataService(marketDataService);
 marketRoutes.setMarketDataService(marketDataService);
+initializeSignalService(signalService);
 
 // Start server
 const PORT = process.env.PORT || 3001;

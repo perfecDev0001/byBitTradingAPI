@@ -1,0 +1,119 @@
+{
+  "filters": {
+    "volumeSpike": {
+      "enabled": true,
+      "threshold": 1.5
+    },
+    "priceBreakout": {
+      "enabled": true,
+      "threshold": 0.02
+    },
+    "whaleAlerts": {
+      "enabled": true
+    },
+    "liquidityImbalance": {
+      "enabled": true
+    }
+  },
+  "candlestickLogic": {
+    "intervals": [
+      "1m",
+      "5m"
+    ],
+    "defaultInterval": "1m",
+    "volumeAnalysis": true,
+    "priceActionAnalysis": true,
+    "supportResistanceAnalysis": false,
+    "patternRecognition": {
+      "enabled": true,
+      "patterns": {
+        "doji": {
+          "enabled": true,
+          "sensitivity": 0.1
+        },
+        "hammer": {
+          "enabled": true,
+          "sensitivity": 0.15
+        },
+        "shootingStar": {
+          "enabled": true,
+          "sensitivity": 0.15
+        },
+        "engulfing": {
+          "enabled": true,
+          "sensitivity": 0.05
+        },
+        "harami": {
+          "enabled": false,
+          "sensitivity": 0.1
+        }
+      }
+    },
+    "trendAnalysis": {
+      "enabled": true,
+      "periods": [
+        20,
+        50,
+        200
+      ],
+      "trendStrength": 0.02
+    },
+    "volatilityThresholds": {
+      "low": 0.01,
+      "medium": 0.03,
+      "high": 0.05
+    }
+  },
+  "riskManagement": {
+    "defaultStopLoss": 0.025,
+    "defaultLeverage": 2,
+    "defaultPositionSize": 150
+  },
+  "notifications": {
+    "webhook": {
+      "enabled": false,
+      "url": "",
+      "timeout": 5000,
+      "retries": 3
+    },
+    "email": {
+      "enabled": false,
+      "recipients": [],
+      "onSignal": true,
+      "onTrade": true,
+      "dailySummary": false
+    },
+    "discord": {
+      "enabled": false,
+      "webhookUrl": "",
+      "onSignal": true,
+      "onTrade": false
+    }
+  },
+  "display": {
+    "theme": "dark",
+    "currency": "USD",
+    "timezone": "UTC",
+    "dateFormat": "YYYY-MM-DD",
+    "timeFormat": "24h",
+    "decimalPlaces": 2
+  },
+  "scanner": {
+    "maxSymbols": 50,
+    "updateInterval": 1000,
+    "autoRefresh": true,
+    "soundAlerts": false,
+    "popupAlerts": true
+  },
+  "api": {
+    "bybit": {
+      "testnet": true,
+      "timeout": 10000,
+      "retries": 3
+    },
+    "rateLimit": {
+      "enabled": true,
+      "requestsPerMinute": 100
+    }
+  }
+}
