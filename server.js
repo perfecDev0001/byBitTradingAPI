@@ -89,6 +89,7 @@ const signalService = new SignalService();
 socketService.setMarketDataService(marketDataService);
 marketRoutes.setMarketDataService(marketDataService);
 initializeSignalService(signalService);
+signalService.setMarketDataService(marketDataService);
 
 // Start server
 const PORT = process.env.PORT || 3001;
@@ -102,6 +103,11 @@ server.listen(PORT, async () => {
   try {
     await marketDataService.initialize();
     console.log('Market Data Service initialized successfully');
+    
+    // Auto-start signal generation for all coins
+    console.log('🚀 Auto-starting signal generation...');
+    signalService.startSignalGeneration(); // Start without coin restrictions
+    
   } catch (error) {
     console.error('Failed to initialize Market Data Service:', error);
   }

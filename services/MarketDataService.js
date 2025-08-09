@@ -23,8 +23,8 @@ class MarketDataService extends EventEmitter {
     this.signalData = new Map(); // Store detected signals for each symbol
     this.isInitialized = false;
     this.scannerFilters = {
-      volumeSpike: 1.01,    // 1% volume spike (extremely sensitive)
-      priceBreakout: 1.001, // 0.1% price movement (extremely sensitive)
+      volumeSpike: 1.005,   // 0.5% volume spike (ultra sensitive)
+      priceBreakout: 1.0005, // 0.05% price movement (ultra sensitive)
       spoofDetection: true,
       whaleAlerts: true,
       liquidityImbalance: true
@@ -121,7 +121,7 @@ class MarketDataService extends EventEmitter {
             // If same priority, sort by volume (if available)
             return 0; // Keep original order for same priority
           })
-          .slice(0, 50); // Increase to 50 symbols to get more main pairs
+          .slice(0, 100); // Increase to 100 symbols to get maximum data
 
         // Subscribe to real-time data for these symbols
         const symbolNames = symbols.map(s => s.symbol);
@@ -141,7 +141,7 @@ class MarketDataService extends EventEmitter {
       const tickerResult = await this.wsClient.subscribeV5('tickers.linear', 'linear');
       
       // Subscribe to kline data and order book for selected symbols
-      for (const symbol of symbols.slice(0, 10)) { // Increase to 10 symbols for better coverage
+      for (const symbol of symbols.slice(0, 20)) { // Increase to 20 symbols for better coverage
         const klineResult = await this.wsClient.subscribeV5(`kline.1.${symbol}`, 'linear');
         
         // Subscribe to order book data (50 levels)
@@ -294,12 +294,15 @@ class MarketDataService extends EventEmitter {
       a: orderBook.asks  // asks
     } : null;
     
-    // Run signal detection with current filter settings (handle missing data gracefully)
+    // Run signal detection with ultra-sensitive settings (handle missing data gracefully)
     const volumeSpike = candles ? this.detectVolumeSpike(candles, this.scannerFilters.volumeSpike) : false;
     const priceBreakout = candles ? this.detectPriceBreakout(candles, this.scannerFilters.priceBreakout) : { isBreakout: false, direction: null };
-    const orderBookImbalance = orderBookFormatted ? this.detectOrderBookImbalance(orderBookFormatted, 1.01) : { isImbalanced: false };
-    const liquidityWalls = orderBookFormatted ? this.detectLiquidityWalls(orderBookFormatted, 1.02) : { hasWalls: false };
+    const orderBookImbalance = orderBookFormatted ? this.detectOrderBookImbalance(orderBookFormatted, 1.005) : { isImbalanced: false }; // Ultra sensitive
+    const liquidityWalls = orderBookFormatted ? this.detectLiquidityWalls(orderBookFormatted, 1.01) : { hasWalls: false }; // More sensitive
     const whaleActivity = this.detectWhaleActivityAdvanced(marketData, candles); // Whale detection (can work with just market data)
+    
+    // Fallback detection - basic market activity (always triggers for active coins)
+    const basicActivity = this.detectBasicMarketActivity(marketData);
     
     // Check if any signals were detected
     let hasSignal = false;
@@ -368,6 +371,18 @@ class MarketDataService extends EventEmitter {
       });
     }
     
+    // Basic activity detection (fallback to ensure we always get some data)
+    if (basicActivity) {
+      hasSignal = true;
+      detectedSignals.push({ 
+        type: 'basic_activity', 
+        data: { 
+          ...basicActivity,
+          detected: true 
+        } 
+      });
+    }
+    
     // Always create detailed filter information for display (both active and inactive)
     const allFilters = [];
     
@@ -426,9 +441,23 @@ class MarketDataService extends EventEmitter {
         `${whaleActivity.type}: ${this.formatVolume(actualValues.turnover24h)} ${whaleActivity.direction || ''}` :
         `${this.formatVolume(actualValues.turnover24h)} turnover, ${actualValues.change24h?.toFixed(2)}% change`,
       severity: whaleActivity ? 'critical' : 'inactive',
-      threshold: '$10K + 0.1%',
+      threshold: '$1K + 0.01%',
       actualValue: this.formatVolume(actualValues.turnover24h || 0),
       isActive: !!whaleActivity
+    });
+    
+    // Basic Activity Filter (always show - fallback to ensure data)
+    allFilters.push({
+      type: 'basic_activity',
+      icon: '📊',
+      label: 'Market Activity',
+      description: basicActivity ? 
+        `Active trading: ${this.formatVolume(actualValues.volume24h)} volume` :
+        `${this.formatVolume(actualValues.volume24h)} volume, ${actualValues.change24h?.toFixed(2)}% change`,
+      severity: basicActivity ? 'low' : 'inactive',
+      threshold: '$100 volume',
+      actualValue: this.formatVolume(actualValues.volume24h || 0),
+      isActive: !!basicActivity
     });
     
     // Store signal data for this symbol (always store, regardless of hasSignal)
@@ -887,10 +916,10 @@ class MarketDataService extends EventEmitter {
     // Calculate average volume from recent candles
     const avgVolume = candles.slice(1, 6).reduce((sum, candle) => sum + parseFloat(candle[5]), 0) / Math.min(5, candles.length - 1);
     
-    // Whale detection criteria (extremely sensitive)
-    const highVolumeThreshold = 10000; // $10K+ turnover (extremely low threshold)
-    const volumeSpikeThreshold = 1.1; // 1.1x average volume (extremely sensitive)
-    const priceImpactThreshold = 0.1; // 0.1% price change (extremely sensitive)
+    // Whale detection criteria (ultra sensitive)
+    const highVolumeThreshold = 1000; // $1K+ turnover (ultra low threshold)
+    const volumeSpikeThreshold = 1.05; // 1.05x average volume (ultra sensitive)
+    const priceImpactThreshold = 0.01; // 0.01% price change (ultra sensitive)
     
     // Check for whale activity (any significant price change)
     if (turnover24h > highVolumeThreshold && Math.abs(change24h) > priceImpactThreshold) {
@@ -921,18 +950,41 @@ class MarketDataService extends EventEmitter {
     return null;
   }
 
-  // Helper method to validate symbols
+  // Basic market activity detection (fallback to ensure we always get some data)
+  detectBasicMarketActivity(marketData) {
+    if (!marketData) return null;
+    
+    const volume24h = marketData.volume24h || 0;
+    const turnover24h = marketData.turnover24h || 0;
+    const change24h = Math.abs(marketData.change24h || 0);
+    const price = marketData.price || 0;
+    
+    // Ultra-low threshold - any coin with basic activity
+    const minVolumeThreshold = 100; // $100 minimum volume
+    const minPriceThreshold = 0.001; // Any price above $0.001
+    
+    // Detect basic market activity (very permissive)
+    if ((volume24h > minVolumeThreshold || turnover24h > minVolumeThreshold) && price > minPriceThreshold) {
+      return {
+        type: 'basic_market_activity',
+        volume: volume24h,
+        turnover: turnover24h,
+        price: price,
+        change: change24h,
+        activity_level: volume24h > 10000 ? 'high' : volume24h > 1000 ? 'medium' : 'low',
+        confidence: 0.3
+      };
+    }
+    
+    return null;
+  }
+
+  // Helper method to validate symbols - Allow all USDT pairs for maximum data
   isValidSymbol(symbol) {
-    // Filter for USDT pairs
+    // Only filter for USDT pairs - allow everything else to get maximum data
     if (!symbol.endsWith('USDT')) return false;
     
-    // Filter out derivative/leveraged tokens with numerical prefixes
-    if (/^\d+/.test(symbol)) return false; // Starts with numbers like 1000, 10000
-    
-    // Filter out some other unwanted patterns
-    if (symbol.includes('UP') || symbol.includes('DOWN')) return false; // Leveraged tokens
-    if (symbol.includes('BEAR') || symbol.includes('BULL')) return false; // Leveraged tokens
-    
+    // Allow all USDT pairs including leveraged tokens to get more data
     return true;
   }
 

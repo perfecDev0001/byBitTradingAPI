@@ -25,71 +25,10 @@ router.setMarketDataService = (service) => {
 // GET /api/market/data - Get current market data
 router.get('/data', ensureMarketService, async (req, res) => {
   try {
-    const { limit = 50, sort = 'volume', demo = 'false' } = req.query;
+    const { limit = 50, sort = 'volume' } = req.query;
     let data = await marketDataService.getMarketData();
     
-    // If no signals detected and demo mode requested, add some sample data
-    if (data.length === 0 && demo === 'true') {
-      const allData = await marketDataService.getAllMarketData();
-      if (allData.length > 0) {
-        // Take first 3 coins and add sample filter data
-        data = allData.slice(0, 3).map((coin, index) => {
-          const sampleFilters = [
-            // First coin - Volume spike + Price breakout
-            index === 0 ? [
-              {
-                type: 'volume_spike',
-                icon: '📈',
-                label: 'Volume Spike',
-                description: '15.2% above average',
-                severity: 'high'
-              },
-              {
-                type: 'price_breakout',
-                icon: '🚀',
-                label: 'Price Breakout',
-                description: 'Upward price movement detected',
-                severity: 'high'
-              }
-            ] : [],
-            // Second coin - Order book imbalance + Whale activity
-            index === 1 ? [
-              {
-                type: 'spoof_detection',
-                icon: '⚠️',
-                label: 'Order Book Imbalance',
-                description: 'Buy pressure (1.25x ratio)',
-                severity: 'medium'
-              },
-              {
-                type: 'whale_alert',
-                icon: '🐋',
-                label: 'Whale Activity',
-                description: 'large_volume_movement: $2.1M bullish',
-                severity: 'critical'
-              }
-            ] : [],
-            // Third coin - Liquidity walls
-            index === 2 ? [
-              {
-                type: 'liquidity_imbalance',
-                icon: '🧱',
-                label: 'Liquidity Walls',
-                description: 'Buy & Sell walls detected',
-                severity: 'high'
-              }
-            ] : []
-          ];
-          
-          return {
-            ...coin,
-            hasSignals: sampleFilters[index].length > 0,
-            activeFilters: sampleFilters[index],
-            filterCount: sampleFilters[index].length
-          };
-        });
-      }
-    }
+    // Always use real data - no demo mode
     
     let sortedData = data;
     if (sort === 'volume') {
@@ -101,8 +40,7 @@ router.get('/data', ensureMarketService, async (req, res) => {
     res.json({
       success: true,
       data: sortedData.slice(0, parseInt(limit)),
-      timestamp: Date.now(),
-      demoMode: demo === 'true' && data.length > 0
+      timestamp: Date.now()
     });
   } catch (error) {
     console.error('Error fetching market data:', error);
