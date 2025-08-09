@@ -104,9 +104,8 @@ server.listen(PORT, async () => {
     await marketDataService.initialize();
     console.log('Market Data Service initialized successfully');
     
-    // Auto-start signal generation for all coins
-    console.log('🚀 Auto-starting signal generation...');
-    signalService.startSignalGeneration(); // Start without coin restrictions
+    // Don't auto-start signal generation - wait for user to click Start button
+    console.log('✅ Signal service ready - waiting for user to start signal generation');
     
   } catch (error) {
     console.error('Failed to initialize Market Data Service:', error);

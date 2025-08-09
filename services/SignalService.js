@@ -42,12 +42,14 @@ class SignalService extends EventEmitter {
 
   // Start signal generation
   startSignalGeneration(coins = null) {
-    if (coins) {
+    if (coins && Array.isArray(coins) && coins.length > 0) {
       this.selectedCoins = coins;
+      console.log(`🎯 Signal generation started for selected coins: ${coins.join(', ')}`);
+    } else {
+      console.log(`🎯 Signal generation started - no specific coins selected`);
     }
     
     this.isGenerating = true;
-    console.log(`🚀 Signal generation started for ${this.selectedCoins.length} coins`);
     
     // Start the signal generation interval
     this.startSignalGenerationLoop();
@@ -66,6 +68,7 @@ class SignalService extends EventEmitter {
 
   // Stop signal generation
   stopSignalGeneration() {
+    console.log(`🛑 Signal generation stopped`);
     this.isGenerating = false;
     
     // Clear the signal generation interval
@@ -92,8 +95,8 @@ class SignalService extends EventEmitter {
     
     const { symbol, price, change24h, volume24h } = marketData;
     
-    // Allow all symbols - ignore selectedCoins restriction to get maximum data
-    // if (!this.selectedCoins.includes(symbol)) return null;
+    // Only generate signals for selected coins from frontend
+    if (this.selectedCoins.length > 0 && !this.selectedCoins.includes(symbol)) return null;
     
     // Calculate confidence based on signal strength
     const confidence = this.calculateConfidence(marketData, signalTypes);
@@ -391,8 +394,8 @@ class SignalService extends EventEmitter {
     this.marketDataService.on('marketUpdate', (marketData) => {
       if (!this.isGenerating) return;
       
-      // Process all coins - ignore selectedCoins restriction
-      // if (!this.selectedCoins.includes(marketData.symbol)) return;
+      // Only process selected coins from frontend
+      if (this.selectedCoins.length > 0 && !this.selectedCoins.includes(marketData.symbol)) return;
       
       // Generate signals for any market data (ultra-aggressive mode)
       if (marketData && marketData.symbol && marketData.price) {
@@ -422,12 +425,15 @@ class SignalService extends EventEmitter {
         const allMarketData = await this.marketDataService.getMarketData();
         
         if (allMarketData && allMarketData.length > 0) {
-          // Process all coins with market data (ultra-aggressive mode)
-          const activeCoins = allMarketData.slice(0, 10); // Process top 10 coins
+          // Only process selected coins from frontend
+          const selectedCoinsData = allMarketData.filter(coin => 
+            this.selectedCoins.length === 0 || this.selectedCoins.includes(coin.symbol)
+          );
           
-          console.log(`🔍 Processing ${activeCoins.length} coins for signal generation`);
+          console.log(`🔍 Processing ${selectedCoinsData.length} selected coins for signal generation`);
+          console.log(`📋 Selected coins: ${this.selectedCoins.join(', ') || 'None selected'}`);
           
-          for (const coinData of activeCoins) {
+          for (const coinData of selectedCoinsData) {
             if (coinData && coinData.symbol && coinData.price) {
               // Always try to generate signals
               const signalTypes = ['basic_activity'];
@@ -449,7 +455,7 @@ class SignalService extends EventEmitter {
       } catch (error) {
         console.error('Error fetching market data for signals:', error);
       }
-    }, 10000); // Check every 10 seconds for more frequent signals
+    }, 30000); // Check every 30 seconds
   }
 
 
