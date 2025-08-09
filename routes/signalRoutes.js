@@ -82,8 +82,11 @@ router.post('/start', (req, res) => {
     }
 
     const { coins } = req.body;
+    console.log('📡 Received start signal request with coins:', coins);
+    
     const result = signalService.startSignalGeneration(coins);
     
+    console.log('✅ Signal generation result:', result);
     res.json(result);
   } catch (error) {
     console.error('Error starting signal generation:', error);
@@ -168,6 +171,26 @@ router.put('/settings', (req, res) => {
   }
 });
 
+// GET /api/signals/coins - Get selected coins
+router.get('/coins', (req, res) => {
+  try {
+    if (!signalService) {
+      return res.status(500).json({ error: 'Signal service not initialized' });
+    }
+
+    const selectedCoins = signalService.getSelectedCoins();
+    
+    res.json({
+      success: true,
+      data: selectedCoins,
+      count: selectedCoins.length
+    });
+  } catch (error) {
+    console.error('Error getting selected coins:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUT /api/signals/coins - Update selected coins
 router.put('/coins', (req, res) => {
   try {
@@ -176,13 +199,16 @@ router.put('/coins', (req, res) => {
     }
 
     const { coins } = req.body;
+    console.log('📡 Received update coins request with coins:', coins);
     
     if (!Array.isArray(coins)) {
+      console.log('❌ Invalid coins data - not an array:', typeof coins);
       return res.status(400).json({ error: 'Coins must be an array' });
     }
     
     const result = signalService.updateSelectedCoins(coins);
     
+    console.log('✅ Update coins result:', result);
     res.json(result);
   } catch (error) {
     console.error('Error updating selected coins:', error);

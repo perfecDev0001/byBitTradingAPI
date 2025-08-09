@@ -11,14 +11,10 @@ class SignalService extends EventEmitter {
     this.signals = new Map(); // Active signals
     this.signalHistory = []; // Historical signals
     this.isGenerating = false;
-    this.selectedCoins = [
-      'BTCUSDT', 'ETHUSDT', 'REZUSDT', 'QUICKUSDT', 'HMSTRUSDT', 
-      'AINUSDT', 'JASMYUSDT', 'LINKUSDT', 'SLFUSDT', 'GODSUSDT', 
-      'DOGEUSDT', 'ICPUSDT', 'CATIUSDT', 'XRPUSDT', 'GMTUSDT', 
-      'ORDERUSDT', 'BLURUSDT', 'MAVUSDT'
-    ];
+    this.selectedCoins = []; // Coins selected from frontend
     this.signalInterval = null; // Interval for signal generation
     this.marketDataService = null; // Will be injected
+    this.lastSignalTime = new Map(); // Track last signal time per symbol to prevent duplicates
     this.settings = {
       minConfidence: 10, // Ultra-low threshold to ensure signals are generated
       leverage: '20x',
@@ -42,12 +38,21 @@ class SignalService extends EventEmitter {
 
   // Start signal generation
   startSignalGeneration(coins = null) {
+    // If coins are provided, update selected coins
     if (coins && Array.isArray(coins) && coins.length > 0) {
       this.selectedCoins = coins;
-      console.log(`🎯 Signal generation started for selected coins: ${coins.join(', ')}`);
-    } else {
-      console.log(`🎯 Signal generation started - no specific coins selected`);
+      console.log(`📋 Updated selected coins from start request: ${coins.join(', ')}`);
     }
+    
+    if (this.selectedCoins.length === 0) {
+      console.log(`⚠️ No coins selected for signal generation`);
+      return {
+        success: false,
+        message: 'No coins selected. Please select coins first.'
+      };
+    }
+    
+    console.log(`🎯 Signal generation started for ${this.selectedCoins.length} selected coins: ${this.selectedCoins.join(', ')}`);
     
     this.isGenerating = true;
     
@@ -55,14 +60,14 @@ class SignalService extends EventEmitter {
     this.startSignalGenerationLoop();
     
     this.emit('generationStarted', {
-      coins: this.selectedCoins,
+      selectedCoins: this.selectedCoins,
       timestamp: new Date().toISOString()
     });
     
     return {
       success: true,
-      message: `Signal generation started for ${this.selectedCoins.length} coins`,
-      coins: this.selectedCoins
+      message: `Signal generation started for ${this.selectedCoins.length} selected coins`,
+      selectedCoins: this.selectedCoins
     };
   }
 
@@ -96,7 +101,20 @@ class SignalService extends EventEmitter {
     const { symbol, price, change24h, volume24h } = marketData;
     
     // Only generate signals for selected coins from frontend
-    if (this.selectedCoins.length > 0 && !this.selectedCoins.includes(symbol)) return null;
+    if (this.selectedCoins.length > 0 && !this.selectedCoins.includes(symbol)) {
+      return null;
+    }
+    
+    // Prevent duplicate signals - don't generate if we just generated one for this symbol
+    const now = Date.now();
+    const lastSignalTime = this.lastSignalTime.get(symbol) || 0;
+    const timeSinceLastSignal = now - lastSignalTime;
+    
+    // Don't generate signals more frequently than every 60 seconds for the same symbol
+    if (timeSinceLastSignal < 60000) {
+      console.log(`⏰ Skipping duplicate signal for ${symbol} (last signal ${Math.round(timeSinceLastSignal/1000)}s ago)`);
+      return null;
+    }
     
     // Calculate confidence based on signal strength
     const confidence = this.calculateConfidence(marketData, signalTypes);
@@ -139,6 +157,9 @@ class SignalService extends EventEmitter {
     
     // Store signal
     this.signals.set(signal.id, signal);
+    
+    // Record the time this signal was generated to prevent duplicates
+    this.lastSignalTime.set(symbol, now);
     
     // Emit signal event
     this.emit('newSignal', signal);
@@ -340,14 +361,29 @@ class SignalService extends EventEmitter {
 
   // Update selected coins
   updateSelectedCoins(coins) {
+    if (!Array.isArray(coins)) {
+      return {
+        success: false,
+        message: 'Coins must be an array'
+      };
+    }
+    
     this.selectedCoins = coins;
+    
+    console.log(`📋 Updated selected coins: ${coins.length > 0 ? coins.join(', ') : 'None selected'}`);
     
     this.emit('coinsUpdated', this.selectedCoins);
     
     return {
       success: true,
-      selectedCoins: this.selectedCoins
+      selectedCoins: this.selectedCoins,
+      message: `Selected ${coins.length} coins for signal generation`
     };
+  }
+
+  // Get selected coins
+  getSelectedCoins() {
+    return this.selectedCoins;
   }
 
   // Clear all signals (for testing/reset)
@@ -395,9 +431,11 @@ class SignalService extends EventEmitter {
       if (!this.isGenerating) return;
       
       // Only process selected coins from frontend
-      if (this.selectedCoins.length > 0 && !this.selectedCoins.includes(marketData.symbol)) return;
+      if (this.selectedCoins.length > 0 && !this.selectedCoins.includes(marketData.symbol)) {
+        return;
+      }
       
-      // Generate signals for any market data (ultra-aggressive mode)
+      // Generate signals for selected market data
       if (marketData && marketData.symbol && marketData.price) {
         // Always try to generate a signal regardless of filters
         const signalTypes = ['basic_activity']; // Default signal type
@@ -427,7 +465,7 @@ class SignalService extends EventEmitter {
         if (allMarketData && allMarketData.length > 0) {
           // Only process selected coins from frontend
           const selectedCoinsData = allMarketData.filter(coin => 
-            this.selectedCoins.length === 0 || this.selectedCoins.includes(coin.symbol)
+            this.selectedCoins.length > 0 && this.selectedCoins.includes(coin.symbol)
           );
           
           console.log(`🔍 Processing ${selectedCoinsData.length} selected coins for signal generation`);
